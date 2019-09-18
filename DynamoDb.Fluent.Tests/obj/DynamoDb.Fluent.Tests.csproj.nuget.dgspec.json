@@ -1,0 +1,122 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent.Tests/DynamoDb.Fluent.Tests.csproj": {}
+  },
+  "projects": {
+    "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent.Tests/DynamoDb.Fluent.Tests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent.Tests/DynamoDb.Fluent.Tests.csproj",
+        "projectName": "DynamoDb.Fluent.Tests",
+        "projectPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent.Tests/DynamoDb.Fluent.Tests.csproj",
+        "packagesPath": "/Users/michael/.nuget/packages/",
+        "outputPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent.Tests/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/michael/.config/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp2.1"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp2.1": {
+            "projectReferences": {
+              "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj": {
+                "projectPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp2.1": {
+          "dependencies": {
+            "MSTest.TestAdapter": {
+              "target": "Package",
+              "version": "[1.3.2, )"
+            },
+            "MSTest.TestFramework": {
+              "target": "Package",
+              "version": "[1.3.2, )"
+            },
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[15.9.0, )"
+            },
+            "Microsoft.NETCore.App": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.1.0, )",
+              "autoReferenced": true
+            }
+          },
+          "imports": [
+            "net461"
+          ],
+          "assetTargetFallback": true,
+          "warn": true
+        }
+      }
+    },
+    "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj",
+        "projectName": "DynamoDb.Fluent",
+        "projectPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj",
+        "packagesPath": "/Users/michael/.nuget/packages/",
+        "outputPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/michael/.config/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp2.1"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp2.1": {
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp2.1": {
+          "dependencies": {
+            "AWSSDK.DynamoDBv2": {
+              "target": "Package",
+              "version": "[3.3.101.65, )"
+            },
+            "Microsoft.NETCore.App": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.1.0, )",
+              "autoReferenced": true
+            }
+          },
+          "imports": [
+            "net461"
+          ],
+          "assetTargetFallback": true,
+          "warn": true
+        }
+      }
+    }
+  }
+}
