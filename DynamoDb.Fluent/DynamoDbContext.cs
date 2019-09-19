@@ -32,7 +32,6 @@ namespace DynamoDb.Fluent
         
         public ITable<T> GetTable<T>(string tableName)
         {
-            var table = Table.LoadTable(client, tableName);
             return new DynamoDbTable<T>(client, tableName);
         }
     }

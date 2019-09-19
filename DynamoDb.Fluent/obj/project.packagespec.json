@@ -6,6 +6,9 @@
     "projectPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj",
     "outputPath": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/obj/",
     "projectStyle": "PackageReference",
+    "fallbackFolders": [
+      "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
+    ],
     "originalTargetFrameworks": [
       "netcoreapp2.1"
     ],
