@@ -9,6 +9,7 @@ namespace DynamoDb.Fluent
         IQueryCondition<T> WithSecondaryKey();
         IScanCondition<T> WithFilter(string fieldName);
         Task<(T[] items, int Count)> Get(int limit);
+        IObjectQuery<T> Descending();
         Task<T[]> Get();
         Task<int> Delete();
     }

@@ -18,7 +18,8 @@ namespace DynamoDb.Fluent
             private ScanOperationConfig scanOperation;
             private string currentAttributeName;
             private readonly string indexName;
-            
+            private List<string> indexAttributes;
+            private bool isDescending;
             public DynamoDbObjectQuery(Table table, EntityConverter converter)
             {
                 this.table = table;
@@ -35,6 +36,10 @@ namespace DynamoDb.Fluent
                 this.indexName = index.IndexName;
                 hashKeyName = index.KeySchema.SingleOrDefault(k => k.KeyType == KeyType.HASH)?.AttributeName;
                 sortKeyName =  index.KeySchema.SingleOrDefault(k => k.KeyType == KeyType.RANGE)?.AttributeName;
+                if (index.Projection.ProjectionType == ProjectionType.INCLUDE)
+                {
+                    indexAttributes = index.Projection.NonKeyAttributes;
+                }
             }
 
             private bool IsKeyField(string name)
@@ -139,28 +144,23 @@ namespace DynamoDb.Fluent
 
             public async Task<(T[] items, int Count)> Get(int limit)
             {
-                Search search;
                 if (queryOperation != null)
-                    search = table.Query(queryOperation);
-                else if (scanOperation == null)
-                    search = table.Scan(scanOperation);
-                else
                 {
-                    search = table.Scan(new ScanOperationConfig());
+                    return await GetQuery(queryOperation, limit);
                 }
 
-                IEnumerable<T> items = new T[0];
-                var itemCount = 0;
-                while (!search.IsDone)
+                if (scanOperation != null)
                 {
-                    var batch = await search.GetNextSetAsync();
-                    items = items.Concat(batch.Select(converter.FromDocument<T>));
-                    itemCount += batch.Count;
-                    if (limit > 0 && itemCount >= limit)
-                        break;
+                    return await GetScan(scanOperation, limit);
                 }
+                
+                return await GetScan(new ScanOperationConfig(), limit);
+            }
 
-                return (items.ToArray(), search.Count);
+            public IObjectQuery<T> Descending()
+            {
+                isDescending = true;
+                return this;
             }
 
             public async Task<T[]> Get()
@@ -202,6 +202,72 @@ namespace DynamoDb.Fluent
                 return this;
             }
 
+            private async Task<(T[] items, int Count)> GetQuery(QueryOperationConfig query, int limit)
+            {
+                query.BackwardSearch = isDescending;
+                if (indexName != null)
+                {
+                    queryOperation.IndexName = indexName;
+                    if (indexAttributes != null)
+                    {
+                        queryOperation.Select = SelectValues.SpecificAttributes;
+                        queryOperation.AttributesToGet = indexAttributes;
+                    }
+                }
+                var search = table.Query(query);
+                var count = search.Count;
+                
+                IEnumerable<T> items = new T[0];
+                var itemCount = 0;
+                while (!search.IsDone)
+                {
+                    var batch = await search.GetNextSetAsync();
+                    items = items.Concat(batch.Select(converter.FromDocument<T>));
+                    itemCount += batch.Count;
+                    if (limit > 0 && itemCount >= limit)
+                        break;
+                }
+                var results = items.ToArray();
+                if (limit > 0 && results.Length > limit)
+                    return (results.Take(limit).ToArray(), count);
+                return (results.ToArray(), count);
+            }
+            
+            private async Task<(T[] items, int Count)> GetScan(ScanOperationConfig scan, int limit)
+            {
+                if (indexName != null)
+                {
+                    scanOperation.IndexName = indexName;
+                    if (indexAttributes != null)
+                    {
+                        scanOperation.Select = SelectValues.SpecificAttributes;
+                        scanOperation.AttributesToGet = indexAttributes;
+                    }
+                }
+                var search = table.Scan(scan);
+                    
+                IEnumerable<T> items = new T[0];
+                var itemCount = 0;
+                while (!search.IsDone)
+                {
+                    var batch = await search.GetNextSetAsync();
+                    items = items.Concat(batch.Select(converter.FromDocument<T>));
+                    itemCount += batch.Count;
+                    if (limit > 0 && itemCount >= limit && !isDescending)
+                        break;
+                }
+
+                if (!isDescending) 
+                    return (items.ToArray(), search.Count);
+                
+                //Scan operations don't support reverse order searches
+                items = items.Reverse();
+                if (limit > 0)
+                    items = items.Take(limit);
+                return (items.ToArray(), search.Count);
+
+            }
+            
             public IObjectQuery<T> Equal(object value)
             {
                 if (IsKeyField(currentAttributeName))
