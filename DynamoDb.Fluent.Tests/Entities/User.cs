@@ -1,6 +1,6 @@
 using System;
 
-namespace DynamoDb.Fluent.Tests
+namespace DynamoDb.Fluent.Tests.Entities
 {
     public class User
     {

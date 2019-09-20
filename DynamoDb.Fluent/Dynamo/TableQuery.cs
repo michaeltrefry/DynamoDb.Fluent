@@ -1,12 +1,10 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 
-namespace DynamoDb.Fluent
+namespace DynamoDb.Fluent.Dynamo
 {
-    internal class DynamoDbTable<T> : ITable<T>
+    internal class DynamoDbTable<T> : ITable<T> where T : class, new()
     {
         internal readonly EntityConverter Converter;
         internal readonly Table Table;
@@ -46,28 +44,6 @@ namespace DynamoDb.Fluent
             var document = Converter.ToDocument(item);
             document = await Table.DeleteItemAsync(document);
             return Converter.FromDocument<T>(document);
-        }
-    }
-
-    internal class DynamoDbTableIndex<T> : ITableIndex<T>
-    {
-        private readonly string indexName;
-        private readonly DynamoDbTable<T> table;
-        public DynamoDbTableIndex(DynamoDbTable<T> table, string indexName)
-        {
-            this.table = table;
-            this.indexName = indexName;
-        }
-
-        public IObjectQuery<T> Query()
-        {
-            return new DynamoDbObjectQuery<T>(table.Table, table.Converter, indexName);
-        }
-
-        public async Task<T> Find(object indexHashKey, object indexSortKey)
-        {
-            var results = await Query().WithPrimaryKey().Equal(indexHashKey).WithSecondaryKey().Equal(indexSortKey).Get();
-            return results.SingleOrDefault();
         }
     }
 }
