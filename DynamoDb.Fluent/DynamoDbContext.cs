@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.DynamoDBv2;
@@ -10,6 +11,8 @@ namespace DynamoDb.Fluent
     {
         
         private readonly AmazonDynamoDBClient client;
+        private readonly ConcurrentDictionary<string, Table> tables = new ConcurrentDictionary<string,Table>();
+        
         public DynamoDbContext(DynamoDbConfiguration configuration)
         {
             if (!string.IsNullOrWhiteSpace(configuration.LocalUrl))
@@ -32,7 +35,18 @@ namespace DynamoDb.Fluent
         
         public ITable<T> GetTable<T>(string tableName)
         {
-            return new DynamoDbTable<T>(client, tableName);
+            return new DynamoDbTable<T>(client, GetTableFromDictionary(tableName));
+        }
+
+        private Table GetTableFromDictionary(string tableName)
+        {
+            if (!tables.TryGetValue(tableName, out var table))
+            {
+                table = Table.LoadTable(client, tableName);
+                tables.TryAdd(tableName, table);
+            }
+            
+            return table;
         }
     }
 }

@@ -10,9 +10,9 @@ namespace DynamoDb.Fluent
     {
         internal readonly EntityConverter Converter;
         internal readonly Table Table;
-        internal DynamoDbTable(AmazonDynamoDBClient client, string tableName)
+        internal DynamoDbTable(AmazonDynamoDBClient client, Table table)
         {
-            this.Table = Table.LoadTable(client, tableName);
+            this.Table = table;
             this.Converter = new EntityConverter(client, Table.TableName);
         }
 
