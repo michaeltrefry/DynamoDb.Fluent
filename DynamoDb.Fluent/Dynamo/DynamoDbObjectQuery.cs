@@ -16,6 +16,8 @@ namespace DynamoDb.Fluent.Dynamo
             private QueryOperationConfig queryOperation;
             private ScanOperationConfig scanOperation;
             private string currentAttributeName;
+            private bool currentAttributeIsHash;
+            private bool currentAttributeIsSort;
             private readonly string indexName;
             private List<string> indexAttributes;
             private bool isDescending;
@@ -82,9 +84,6 @@ namespace DynamoDb.Fluent.Dynamo
             
             private void AddScanFilterCondition(string name, ScanOperator operation, IEnumerable<object> values)
             {
-                if (IsKeyField(name))
-                    throw new ApplicationException("Use .WithPrimaryKey or .WithSecondaryKey to add conditions to key fields.");
-
                 Primitive primitiveValue = null;
                 DynamoDBEntry[] primitiveValues = null;
                 if (values != null)
@@ -127,18 +126,15 @@ namespace DynamoDb.Fluent.Dynamo
             public IQueryCondition<T> WithPrimaryKey()
             {
                 currentAttributeName = hashKeyName;
+                currentAttributeIsHash = true;
                 return this;
             }
 
             public IQueryCondition<T> WithSecondaryKey()
             {
                 currentAttributeName = sortKeyName;
+                currentAttributeIsSort = true;
                 return this;
-            }
-
-            IScanCondition<T> IObjectQuery<T>.WithFilter(string fieldName)
-            {
-                return WithFilter(fieldName);
             }
 
             public async Task<(T[] items, int Count)> Get(int limit)
@@ -198,6 +194,8 @@ namespace DynamoDb.Fluent.Dynamo
             public IScanCondition<T> WithFilter(string fieldName)
             {
                 currentAttributeName = fieldName;
+                currentAttributeIsHash = false;
+                currentAttributeIsSort = false;
                 return this;
             }
 
@@ -269,7 +267,7 @@ namespace DynamoDb.Fluent.Dynamo
             
             public IObjectQuery<T> Equal(object value)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.Equal, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.Equal, new []{value});
@@ -278,7 +276,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> LessThanOrEqual(object value)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.LessThanOrEqual, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.LessThanOrEqual, new []{value});
@@ -287,7 +285,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> LessThan(object value)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.LessThan, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.LessThan, new []{value});
@@ -296,7 +294,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> GreaterThanOrEqual(object value)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.GreaterThanOrEqual, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.GreaterThanOrEqual, new []{value});
@@ -305,7 +303,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> GreaterThan(object value)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.GreaterThan, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.GreaterThan, new []{value});
@@ -314,7 +312,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> BeginsWith(string value)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.BeginsWith, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.BeginsWith, new []{value});
@@ -323,7 +321,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> Between(object value1, object value2)
             {
-                if (IsKeyField(currentAttributeName))
+                if (currentAttributeIsHash || currentAttributeIsSort)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.Between, new []{value1, value2});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.Between, new []{value1, value2});

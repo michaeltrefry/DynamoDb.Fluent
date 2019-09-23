@@ -11,7 +11,7 @@ namespace DynamoDb.Fluent.Tests.Contexts
         {
             CreateTable(new TableDefinition()
             {
-                Name = "Users",
+                Name = "UnitTests",
                 HashKey = new AttributeDefinition()
                 {
                     Name = "Id",
@@ -26,48 +26,35 @@ namespace DynamoDb.Fluent.Tests.Contexts
                 {
                     new IndexDefinition()
                     {
-                        Name = "user-email-index",
+                        Name = "User-Email-index",
                         HashKey = new AttributeDefinition()
                         {
                             Name = "Email",
                             Type = AttributeType.String
                         }
-                    }
-                }
-            });
-            CreateTable(new TableDefinition()
-            {
-                Name = "UserEntities",
-                HashKey = new AttributeDefinition()
-                {
-                    Name = "UserId",
-                    Type = AttributeType.String
-                },
-                SortKey = new AttributeDefinition()
-                {
-                    Name = "Id",
-                    Type = AttributeType.String
-                },
-                Indexes = new List<IndexDefinition>()
-                {
+                    },
                     new IndexDefinition()
                     {
-                        Name = "name-index",
+                        Name = "OwnerId-Type-Index",
                         HashKey = new AttributeDefinition()
                         {
-                            Name = "Name",
+                            Name = "OwnerId",
                             Type = AttributeType.String
                         },
                         SortKey = new AttributeDefinition()
                         {
-                            Name = "Id",
+                            Name = "Type",
                             Type = AttributeType.String
                         }
                     }
                 }
             });
         }
-        public ITable<User> Users => this.GetTable<User>("Users");
-        public ITable<UserEntity> UserEntities => this.GetTable<UserEntity>("UserEntities");
+        public ITable<User> Users => this.GetTable<User>("UnitTests");
+        public ITable<OwnedEntity> OwnedEntities => this.GetTable<OwnedEntity>("UnitTests");
+        public ITable<T> Entities<T>() where T : class, new()
+        {
+            return this.GetTable<T>("UnitTests");
+        }
     }
 }

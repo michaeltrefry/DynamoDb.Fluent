@@ -19,27 +19,37 @@ namespace DynamoDb.Fluent.Tests
             context = new MyMemoryDbContext();
             for (var i = 0; i < 50; i++)
             {
-                var item = await context.Users.Put(new User()
+                var user = await context.Users.Put(new User()
                 {
                     Id = ShortGuid.NewId(),
-                    Type = "User",
-                    Name = $"TestUser{i}",
+                    Name = $"User{i}",
                     Email = $"user{i}@user.com",
                     PasswordHash = $"{((i*Math.PI)%i).GetHashCode().ToString()}",
                 });
-                for (var e = 0; e < 1000; e++)
+                for (var e = 0; e < 100; e++)
                 {
-                    var entity = await context.UserEntities.Put(new UserEntity()
+                    var entity = await context.OwnedEntities.Put(new OwnedEntity()
                     {
-                        UserId = item.Id,
+                        OwnerId = user.Id,
                         Id = ShortGuid.NewId(),
                         Created = DateTime.UtcNow,
-                        Name = $"UserEntity{e}"
+                        Name = $"OwnedEntity{e}"
+                    });
+                }
+                for (var e = 0; e < 100; e++)
+                {
+                    var entity = await context.Entities<OwnedEntity2>().Put(new OwnedEntity2()
+                    {
+                        OwnerId = user.Id,
+                        Id = ShortGuid.NewId(),
+                        Created = DateTime.UtcNow,
+                        Name = $"OwnedEntity2{e}"
                     });
                 }
                 if (i == 34)
-                    userId = item.Id;
+                    userId = user.Id;
             }
+
         }
         
         [TestMethod]
@@ -62,10 +72,10 @@ namespace DynamoDb.Fluent.Tests
         [TestMethod]
         public async Task TestIndex()
         {
-            var result = await context.UserEntities.WithIndex("name-index").Query().WithPrimaryKey()
-                .Equal("UserEntity98").Get();
+            var result = await context.OwnedEntities.WithIndex("OwnerId-Type-Index").Query().WithPrimaryKey()
+                .Equal(userId).WithSecondaryKey().Equal("OwnedEntity") .Get();
             
-            Assert.AreEqual(result.Length, 50);
+            Assert.AreEqual(result.Length, 100);
         }
 
         [TestMethod]
@@ -85,18 +95,10 @@ namespace DynamoDb.Fluent.Tests
             Assert.IsNotNull(user);
             
             await context.Users.Delete(user);
-
-            KeyNotFoundException expected = null;
-            try
-            {
-                user = await context.Users.Find(user.Id, "User");
-            }
-            catch (KeyNotFoundException ex)
-            {
-                expected = ex;
-            }
-
-            Assert.IsNotNull(expected);
+            
+            user = await context.Users.Find(user.Id, "User");
+            
+            Assert.IsNull(user);
         }
     }
 }

@@ -6,6 +6,8 @@ namespace DynamoDb.Fluent
     {
         ITableIndex<T> WithIndex(string indexName);
         Task<T> Put(T item);
+        Task<T[]> Put(T[] item);
         Task<T> Delete(T item);
+        Task<T[]> Delete(T[] items);
     }
 }

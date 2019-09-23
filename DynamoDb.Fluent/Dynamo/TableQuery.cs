@@ -36,14 +36,36 @@ namespace DynamoDb.Fluent.Dynamo
         {
             var document = Converter.ToDocument(item);
             document = await Table.PutItemAsync(document);
-            return Converter.FromDocument<T>(document);
+            return document != null ? Converter.FromDocument<T>(document) : item;
+        }
+
+        public async Task<T[]> Put(T[] items)
+        {
+            var batch = Table.CreateBatchWrite();
+            foreach (var item in items)
+            {
+                batch.AddDocumentToPut(Converter.ToDocument(item));    
+            }
+            await batch.ExecuteAsync();
+            return items;
         }
 
         public async Task<T> Delete(T item)
         {
             var document = Converter.ToDocument(item);
             document = await Table.DeleteItemAsync(document);
-            return Converter.FromDocument<T>(document);
+            return document != null ? Converter.FromDocument<T>(document) : item;
+        }
+
+        public async Task<T[]> Delete(T[] items)
+        {
+            var batch = Table.CreateBatchWrite();
+            foreach (var item in items)
+            {
+                batch.AddItemToDelete(Converter.ToDocument(item));    
+            }
+            await batch.ExecuteAsync();
+            return items;
         }
     }
 }
