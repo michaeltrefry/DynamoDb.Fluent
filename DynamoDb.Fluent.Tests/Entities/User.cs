@@ -1,9 +1,13 @@
 using System;
 
-namespace DynamoDb.Fluent.Tests
+namespace DynamoDb.Fluent.Tests.Entities
 {
     public class User
     {
+        public User()
+        {
+            Type = this.GetType().Name;
+        }
         public string Id { get; set; }
         public string Type { get; set; }
         public int AdminStatus { get; set; }

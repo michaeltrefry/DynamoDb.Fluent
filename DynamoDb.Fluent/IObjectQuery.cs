@@ -1,28 +1,18 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DynamoDb.Fluent
 {
-    public interface IObjectQuery<T>
+    public interface IObjectQuery<T> where T : class, new()
     {
-        IQueryCondition<T> WithPrimaryKey();
+        IObjectQuery<T> WithPrimaryKey(object keyValue);
         IQueryCondition<T> WithSecondaryKey();
         IScanCondition<T> WithFilter(string fieldName);
-        Task<(T[] items, int Count)> Get(int limit);
+        Task<(T[] items, int count, string pageToken)> Get(int limit, string pageToken = null);
+        IObjectQuery<T> Descending();
         Task<T[]> Get();
         Task<int> Delete();
-    }
-
-    public interface ITable<T> : ITableIndex<T>
-    {
-        ITableIndex<T> WithIndex(string indexName);
-        Task<T> Put(T item);
-        Task<T> Delete(T item);
-    }
-
-    public interface ITableIndex<T>
-    {
-        IObjectQuery<T> Query();   
-        Task<T> Find(object hashKey, object sortKey);
+        Task<int> Update(Action<T> updateAction);
     }
 }

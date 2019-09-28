@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 
-namespace DynamoDb.Fluent
+namespace DynamoDb.Fluent.Dynamo
 {
-    public class DynamoDbContext
+    public class DynamoDbContext : IDynamoDbContext
     {
         
         private readonly AmazonDynamoDBClient client;
@@ -33,7 +31,7 @@ namespace DynamoDb.Fluent
             }
         }
         
-        public ITable<T> GetTable<T>(string tableName)
+        public ITable<T> GetTable<T>(string tableName) where T : class, new()
         {
             return new DynamoDbTable<T>(client, GetTableFromDictionary(tableName));
         }
