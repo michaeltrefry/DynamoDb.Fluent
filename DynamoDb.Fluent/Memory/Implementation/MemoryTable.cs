@@ -109,11 +109,29 @@ namespace DynamoDb.Fluent.Memory.Implementation
             var results = tokens.ToArray();
             var count = results.Length;
 
-            if (query.Limit > 0)
-                results = results.Take(query.Limit).ToArray();
+            var skip = 0;
+            var take = results.Length;
             
-            return (results.Select(t2 => t2.ToObject<T>()).ToArray(), count, null);
-
+            if (int.TryParse(query.PageToken, out var index) && query.Limit > 0)
+            {
+                if (results.Length > index)
+                {
+                    throw new IndexOutOfRangeException("The pageToken surpasses then length of the results.");
+                }
+                var maxLength = index + query.Limit;
+                if (results.Length > maxLength)
+                {
+                    skip = index;
+                    take = query.Limit;
+                }
+                else if (index < results.Length)
+                {
+                    skip = index;
+                    take = results.Length - skip;
+                }
+            }
+            
+            return (results.Skip(skip).Take(take).Select(t2 => t2.ToObject<T>()).ToArray(), count, (skip+take).ToString());
         }
     }
 }
