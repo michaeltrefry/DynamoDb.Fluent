@@ -35,7 +35,7 @@ namespace DynamoDb.Fluent.Tests
                 PasswordHash = "kdsjfihsd09fy9y4rhiosf",
             });
             
-            var (items, count) = await context.Users.Query().WithPrimaryKey().Equal(user.Id).WithSecondaryKey().Equal("User")
+            var (items, count, pageToken) = await context.Users.Query().WithPrimaryKey(user.Id).WithSecondaryKey().Equal("User")
                 .WithFilter("Email").BeginsWith("user").Get(1);
             
             await context.Users.Delete(user);
@@ -62,8 +62,8 @@ namespace DynamoDb.Fluent.Tests
                 Name = "OwnedEntity2"
             });
             
-            var result = await context.OwnedEntities.WithIndex("OwnerId-Type-Index").Query().WithPrimaryKey()
-                .Equal(user.Id).WithSecondaryKey().Equal("OwnedEntity") .Get();
+            var result = await context.OwnedEntities.WithIndex("OwnerId-Type-Index").Query()
+                .WithPrimaryKey(user.Id).WithSecondaryKey().Equal("OwnedEntity") .Get();
             
             Assert.AreEqual(result.Length, 1);
 

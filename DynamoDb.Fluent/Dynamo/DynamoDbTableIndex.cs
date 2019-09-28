@@ -20,7 +20,7 @@ namespace DynamoDb.Fluent.Dynamo
 
         public async Task<T> Find(object indexHashKey, object indexSortKey)
         {
-            var results = await Query().WithPrimaryKey().Equal(indexHashKey).WithSecondaryKey().Equal(indexSortKey).Get();
+            var results = await Query().WithPrimaryKey(indexHashKey).WithSecondaryKey().Equal(indexSortKey).Get();
             return results.SingleOrDefault();
         }
     }

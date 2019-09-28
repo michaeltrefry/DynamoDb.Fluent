@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -21,12 +22,14 @@ namespace DynamoDb.Fluent.Memory
             this.table = table;
             query = new QueryOperation {IndexName = indexName};
         }
-        
-        public IQueryCondition<T> WithPrimaryKey()
+
+        public IObjectQuery<T> WithPrimaryKey(object keyValue)
         {
             currentCondition = query.HashCondition = new Condition()
             {
-                FieldName = table.Definition.HashKey.Name
+                FieldName = table.Definition.HashKey.Name,
+                Operator = ScanOperator.Equal,
+                Value = keyValue.ToString()
             };
             return this;
         }
@@ -50,8 +53,10 @@ namespace DynamoDb.Fluent.Memory
             return this;
         }
 
-        public Task<(T[] items, int Count)> Get(int limit)
+        public Task<(T[] items, int count, string pageToken)> Get(int limit, string pageToken = null)
         {
+            query.Limit = limit;
+            query.PageToken = pageToken;
             return Task.Run(() => table.Query<T>(query));
         }
 
@@ -65,7 +70,7 @@ namespace DynamoDb.Fluent.Memory
         {
             return Task.Run(() =>
             {
-                var (items, _) = table.Query<T>(query);
+                var (items, _, _) = table.Query<T>(query);
                 return items;
             });
         }
@@ -74,10 +79,24 @@ namespace DynamoDb.Fluent.Memory
         {
             return Task.Run(() =>
             {
-                var (items, count) = table.Query<T>(query);
+                var (items, count, _) = table.Query<T>(query);
                 foreach (var item in items)
                 {
                     table.Delete(item);
+                }
+                return items.Length;
+            });
+        }
+
+        public Task<int> Update(Action<T> updateAction)
+        {
+            return Task.Run(() =>
+            {
+                var (items, count, _) = table.Query<T>(query);
+                foreach (var item in items)
+                {
+                    updateAction(item);
+                    table.Put(item);
                 }
                 return items.Length;
             });

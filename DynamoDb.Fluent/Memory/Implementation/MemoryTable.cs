@@ -87,7 +87,7 @@ namespace DynamoDb.Fluent.Memory.Implementation
             return token?.ToObject<T>();
         }
 
-        public (T[], int) Query<T>(QueryOperation query) where T : class, new()
+        public (T[], int, string pageToken) Query<T>(QueryOperation query) where T : class, new()
         {
             IEnumerable<JToken> tokens;
             var sortKey = definition.SortKey.Name;
@@ -112,7 +112,7 @@ namespace DynamoDb.Fluent.Memory.Implementation
             if (query.Limit > 0)
                 results = results.Take(query.Limit).ToArray();
             
-            return (results.Select(t2 => t2.ToObject<T>()).ToArray(), count);
+            return (results.Select(t2 => t2.ToObject<T>()).ToArray(), count, null);
 
         }
     }

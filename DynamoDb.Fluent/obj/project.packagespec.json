@@ -1,5 +1,5 @@
 ﻿{
-  "version": "1.0.1",
+  "version": "1.0.2",
   "restore": {
     "projectUniqueName": "/Users/michael/Library/Mobile Documents/com~apple~CloudDocs/Repos/DynamoDb.Fluent/DynamoDb.Fluent/DynamoDb.Fluent.csproj",
     "projectName": "DynamoDb.Fluent",
@@ -31,7 +31,7 @@
       "dependencies": {
         "AWSSDK.DynamoDBv2": {
           "target": "Package",
-          "version": "[3.3.101.67, )"
+          "version": "[3.3.101.69, )"
         },
         "Microsoft.NETCore.App": {
           "suppressParent": "All",

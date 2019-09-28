@@ -16,11 +16,11 @@ namespace DynamoDb.Fluent.Dynamo
             private QueryOperationConfig queryOperation;
             private ScanOperationConfig scanOperation;
             private string currentAttributeName;
-            private bool currentAttributeIsHash;
-            private bool currentAttributeIsSort;
+            private bool currentAttributeIsKey;
             private readonly string indexName;
-            private List<string> indexAttributes;
+            private readonly List<string> indexAttributes;
             private bool isDescending;
+            private readonly int maxBatchSize = 25;
             public DynamoDbObjectQuery(Table table, EntityConverter converter)
             {
                 this.table = table;
@@ -67,7 +67,15 @@ namespace DynamoDb.Fluent.Dynamo
                         throw new ApplicationException("The first Filter must be a key field");
                     queryOperation = new QueryOperationConfig();
                     if (indexName != null)
+                    {
                         queryOperation.IndexName = indexName;
+                        if (indexAttributes != null)
+                        {
+                            queryOperation.Select = SelectValues.SpecificAttributes;
+                            queryOperation.AttributesToGet = indexAttributes;
+                        }
+                    }
+
                     if (primitiveValue != null)
                         queryOperation.Filter = new QueryFilter(name, operation, primitiveValue);
                     else if (primitiveValues != null)
@@ -98,6 +106,7 @@ namespace DynamoDb.Fluent.Dynamo
                 if (queryOperation == null && scanOperation == null)
                 {
                     scanOperation = new ScanOperationConfig();
+                    
                     if (indexName != null)
                         scanOperation.IndexName = indexName;
                     scanOperation.Filter = new ScanFilter();
@@ -123,33 +132,19 @@ namespace DynamoDb.Fluent.Dynamo
                 }
             }
             
-            public IQueryCondition<T> WithPrimaryKey()
+            public IObjectQuery<T> WithPrimaryKey(object key)
             {
                 currentAttributeName = hashKeyName;
-                currentAttributeIsHash = true;
+                currentAttributeIsKey = true;
+                AddQueryFilterCondition(currentAttributeName, QueryOperator.Equal, new []{key});
                 return this;
             }
 
             public IQueryCondition<T> WithSecondaryKey()
             {
                 currentAttributeName = sortKeyName;
-                currentAttributeIsSort = true;
+                currentAttributeIsKey = true;
                 return this;
-            }
-
-            public async Task<(T[] items, int Count)> Get(int limit)
-            {
-                if (queryOperation != null)
-                {
-                    return await GetQuery(queryOperation, limit);
-                }
-
-                if (scanOperation != null)
-                {
-                    return await GetScan(scanOperation, limit);
-                }
-                
-                return await GetScan(new ScanOperationConfig(), limit);
             }
 
             public IObjectQuery<T> Descending()
@@ -158,116 +153,143 @@ namespace DynamoDb.Fluent.Dynamo
                 return this;
             }
 
+            public async Task<(T[] items, int count, string pageToken)> Get(int limit, string pageToken)
+            {
+                var (documents, count, token) = await GetDocuments(limit, pageToken);
+                return (documents.Select(d => converter.FromDocument<T>(d)).ToArray(), count, token);
+            }
+
+            private async Task<(List<Document> items, int count, string token)> GetDocuments(int limit = 0, string pageToken = null)
+            {
+                if (queryOperation != null)
+                {
+                    return await GetQuery(queryOperation, limit, pageToken);
+                }
+
+                if (scanOperation != null)
+                {
+                    return await GetScan(scanOperation, limit, pageToken);
+                }
+                
+                return await GetScan(new ScanOperationConfig(), limit, pageToken);
+            }
+            
+            private async Task<(List<Document> items, int count, string token)> GetQuery(QueryOperationConfig query, int limit, string pageToken = null)
+            {
+                query.BackwardSearch = isDescending;
+                if (limit > 0)
+                {
+                    query.Limit = limit;
+                }
+                if (pageToken != null)
+                {
+                    query.PaginationToken = pageToken;
+                }
+                var search = table.Query(query);
+                var count = search.Count;
+
+                var items = new List<Document>();
+                while (!search.IsDone)
+                {
+                    var batch = await search.GetNextSetAsync();
+                    items.AddRange(batch);
+                    if (limit > 0 && items.Count >= limit)
+                        break;
+                }
+                
+                return (items.ToList(), count, search.PaginationToken);
+            }
+            
+            private async Task<(List<Document> items, int count, string token)> GetScan(ScanOperationConfig scan, int limit = 0, string pageToken = null)
+            {
+                if (limit > 0)
+                {
+                    scan.Limit = limit;
+                }
+                if (pageToken != null)
+                {
+                    scan.PaginationToken = pageToken;
+                }
+                var search = table.Scan(scan);
+                var count = search.Count;
+                
+                var items = new List<Document>();
+                while (!search.IsDone)
+                {
+                    var batch = await search.GetNextSetAsync();
+                    items.AddRange(batch);
+                    if (limit > 0 && items.Count >= limit)
+                        break;
+                }
+
+                if (isDescending)
+                {
+                    //Scan operations don't support reverse order searches
+                    items.Reverse();
+                }
+                
+                return (items, count, search.PaginationToken);
+            }
+            
             public async Task<T[]> Get()
             {
-                var (items, _) = await Get(0);
+                var (items, _, _) = await Get(0, null);
                 return items;
             }
 
             public async Task<int> Delete()
             {
-               
-                Search search;
-                if (queryOperation != null)
-                    search = table.Query(queryOperation);
-                else if (scanOperation == null)
-                    search = table.Scan(scanOperation);
-                else
-                    throw new ApplicationException("Cannot Delete entire table!");
-                
-                var batchWrite = table.CreateBatchWrite();
-                
-                var itemCount = 0;
-                while (!search.IsDone)
+                var total = 0;
+                var (items, count, token) = await GetDocuments(maxBatchSize);
+                while (items.Any())
                 {
-                    var batch = await search.GetNextSetAsync();
-                    foreach (var document in batch)
+                    var batchWrite = table.CreateBatchWrite();
+                    foreach (var item in items)
                     {
-                        batchWrite.AddItemToDelete(document);
-                        itemCount++;
+                        batchWrite.AddItemToDelete(item);
                     }
+                    await batchWrite.ExecuteAsync();
+                    total += items.Count;
+                    if (items.Count < maxBatchSize)
+                        break;
+                    (items, count, token) = await GetDocuments(maxBatchSize, token);
                 }
-                await batchWrite.ExecuteAsync();
-                return itemCount;
+                return total;
             }
 
+            public async Task<int> Update(Action<T> updateAction)
+            {
+                var total = 0;
+                var (items, count, token) = await GetDocuments(maxBatchSize);
+                while (items.Any())
+                {
+                    var batchWrite = table.CreateBatchWrite();
+                    foreach (var item in items)
+                    {
+                        var value = converter.FromDocument<T>(item);
+                        updateAction(value);
+                        var updateItem = converter.ToDocument(value);
+                        batchWrite.AddDocumentToPut(updateItem);
+                    }
+                    await batchWrite.ExecuteAsync();
+                    total += items.Count;
+                    if (items.Count < maxBatchSize)
+                        break;
+                    (items, count, token) = await GetDocuments(maxBatchSize, token);
+                }
+                return total;
+            }
+            
             public IScanCondition<T> WithFilter(string fieldName)
             {
                 currentAttributeName = fieldName;
-                currentAttributeIsHash = false;
-                currentAttributeIsSort = false;
+                currentAttributeIsKey = false;
                 return this;
             }
 
-            private async Task<(T[] items, int Count)> GetQuery(QueryOperationConfig query, int limit)
-            {
-                query.BackwardSearch = isDescending;
-                if (indexName != null)
-                {
-                    queryOperation.IndexName = indexName;
-                    if (indexAttributes != null)
-                    {
-                        queryOperation.Select = SelectValues.SpecificAttributes;
-                        queryOperation.AttributesToGet = indexAttributes;
-                    }
-                }
-                var search = table.Query(query);
-                var count = search.Count;
-                
-                IEnumerable<T> items = new T[0];
-                var itemCount = 0;
-                while (!search.IsDone)
-                {
-                    var batch = await search.GetNextSetAsync();
-                    items = items.Concat(batch.Select(converter.FromDocument<T>));
-                    itemCount += batch.Count;
-                    if (limit > 0 && itemCount >= limit)
-                        break;
-                }
-                var results = items.ToArray();
-                if (limit > 0 && results.Length > limit)
-                    return (results.Take(limit).ToArray(), count);
-                return (results.ToArray(), count);
-            }
-            
-            private async Task<(T[] items, int Count)> GetScan(ScanOperationConfig scan, int limit)
-            {
-                if (indexName != null)
-                {
-                    scanOperation.IndexName = indexName;
-                    if (indexAttributes != null)
-                    {
-                        scanOperation.Select = SelectValues.SpecificAttributes;
-                        scanOperation.AttributesToGet = indexAttributes;
-                    }
-                }
-                var search = table.Scan(scan);
-                    
-                IEnumerable<T> items = new T[0];
-                var itemCount = 0;
-                while (!search.IsDone)
-                {
-                    var batch = await search.GetNextSetAsync();
-                    items = items.Concat(batch.Select(converter.FromDocument<T>));
-                    itemCount += batch.Count;
-                    if (limit > 0 && itemCount >= limit && !isDescending)
-                        break;
-                }
-
-                if (!isDescending) 
-                    return (items.ToArray(), search.Count);
-                
-                //Scan operations don't support reverse order searches
-                items = items.Reverse();
-                if (limit > 0)
-                    items = items.Take(limit);
-                return (items.ToArray(), search.Count);
-
-            }
-            
             public IObjectQuery<T> Equal(object value)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.Equal, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.Equal, new []{value});
@@ -276,7 +298,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> LessThanOrEqual(object value)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.LessThanOrEqual, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.LessThanOrEqual, new []{value});
@@ -285,7 +307,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> LessThan(object value)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.LessThan, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.LessThan, new []{value});
@@ -294,7 +316,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> GreaterThanOrEqual(object value)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.GreaterThanOrEqual, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.GreaterThanOrEqual, new []{value});
@@ -303,7 +325,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> GreaterThan(object value)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.GreaterThan, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.GreaterThan, new []{value});
@@ -312,7 +334,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> BeginsWith(string value)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.BeginsWith, new []{value});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.BeginsWith, new []{value});
@@ -321,7 +343,7 @@ namespace DynamoDb.Fluent.Dynamo
 
             public IObjectQuery<T> Between(object value1, object value2)
             {
-                if (currentAttributeIsHash || currentAttributeIsSort)
+                if (currentAttributeIsKey)
                     AddQueryFilterCondition(currentAttributeName, QueryOperator.Between, new []{value1, value2});
                 else 
                     AddScanFilterCondition(currentAttributeName, ScanOperator.Between, new []{value1, value2});

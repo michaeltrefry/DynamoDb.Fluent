@@ -15,6 +15,7 @@ namespace DynamoDb.Fluent.Memory.Implementation
         public List<Condition> Conditions { get; set; }
         public bool Descending { get; set; }
         public int Limit { get; set; }
+        public string PageToken { get; set; }
         
     }
 }
